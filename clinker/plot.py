@@ -89,13 +89,14 @@ def save_html(data, output):
     cl_string = '<script src="clinker.js"></script>'
     cm_string = '<script src="clustermap.min.js"></script>'
 
-    assert css_string in html, "Could not find CSS string in index.html"
-    assert cm_string in html, "Could not find clustermap.js string in index.html"
-    assert cl_string in html, "Could not find clinker.js string in index.html"
-    with (directory / "clustermap.min.js").open() as fp:
-        clustermap = fp.read()
-        html = html.replace(cm_string, f"<script>{clustermap}</script>")
+    with (directory / "style.css").open() as fp:
+        css = fp.read()
+        html = html.replace(css_string, f"<style>{css}</style>")
 
+    with (directory / "d3.min.js").open() as fp:
+        d3 = fp.read()
+        html = html.replace(d3_string, f"<script>{d3}</script>")
+        
     with (directory / "clustermap.min.js").open() as fp:
         cm = fp.read()
         html = html.replace(cm_string, f"<script>{cm}</script>")
