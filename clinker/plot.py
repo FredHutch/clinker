@@ -106,7 +106,7 @@ def save_html(data, output):
         html = html.replace(cl_string, f"<script>{cl}</script>")
 
     with open(output, "w") as fp:
-        fp.write(html)
+        fp.write(html.encode('utf-8'))
 
 
 def plot_clusters(clusters, output=None, use_file_order=False):
