@@ -89,19 +89,19 @@ def save_html(data, output):
     cl_string = '<script src="clinker.js"></script>'
     cm_string = '<script src="clustermap.min.js"></script>'
 
-    with (directory / "style.css").open() as fp:
+    with (directory / "style.css").open(encoding="utf-8") as fp:
         css = fp.read()
         html = html.replace(css_string, f"<style>{css}</style>")
 
-    with (directory / "d3.min.js").open() as fp:
+    with (directory / "d3.min.js").open(encoding="utf-8") as fp:
         d3 = fp.read()
         html = html.replace(d3_string, f"<script>{d3}</script>")
-        
-    with (directory / "clustermap.min.js").open() as fp:
+
+    with (directory / "clustermap.min.js").open(encoding="utf-8") as fp:
         cm = fp.read()
         html = html.replace(cm_string, f"<script>{cm}</script>")
 
-    with (directory / "clinker.js").open() as fp:
+    with (directory / "clinker.js").open(encoding="utf-8") as fp:
         cl = f"const data={json.dumps(data)};" + fp.read()
         html = html.replace(cl_string, f"<script>{cl}</script>")
 
