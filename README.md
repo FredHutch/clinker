@@ -15,6 +15,8 @@ optimal display order based on cluster similarity, and generate an interactive
 visualisation (using [clustermap.js](https://github.com/gamcil/clustermap.js))
 that can be extensively tweaked before being exported as an SVG file.
 
+![clinker visualisation demo](images/demo.gif)
+
 ## Installation
 clinker can be installed directly through pip:
 
@@ -28,14 +30,22 @@ cd clinker
 pip install .
 ```
 
+## Citation
+If you found clinker useful, please cite:
+```
+Gilchrist, C.L.M., Chooi, Y.-H., 2020. clinker & clustermap.js: Automatic generation of gene cluster comparison figures. bioRxiv 2020.11.08.370650. https://doi.org/10.1101/2020.11.08.370650
+```
+
 ## Usage
 Running clinker can be as simple as:
 
 `clinker clusters/*.gbk`
 
-This will run the clinker pipeline on all GenBank files within the
-folder and open a new tab in your web browser with the visualisation
-application.
+This will read in all GenBank files inside the folder, align them, and print
+the alignments to the terminal. To generate the visualisation, use the `-p/--plot`
+argument: 
+
+`clinker clusters/*.gbk -p <optional: file name to save static HTML>`
 
 See `-h/--help` for more information:
 
@@ -65,6 +75,11 @@ Output options:
   -f, --force           Overwrite previous output file
   -o OUTPUT, --output OUTPUT
                         Save alignments to file
+  -p [PLOT], --plot [PLOT]
+                        Plot cluster alignments using clustermap.js. If a path
+                        is given, clinker will generate a portable HTML file
+                        at that path. Otherwise, the plot will be served
+                        dynamically using Python's HTTP server.
   -dl DELIMITER, --delimiter DELIMITER
                         Character to delimit output by
   -dc DECIMALS, --decimals DECIMALS
@@ -77,7 +92,7 @@ Output options:
 Example usage
 -------------
 Align clusters, plot results and print scores to screen:
-  $ clinker files/*.gbk
+  $ clinker files/*.gbk -p
 
 Cameron Gilchrist, 2020
 ```

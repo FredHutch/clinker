@@ -10,9 +10,39 @@ div#plot {
   height: 100vh;
 }
 
-#plot div {
+#plot {
   width: 100vw;
   height: 100vh;
+}
+
+.tooltip {
+  background-color: #ddd;
+  border-radius: 4px;
+  color: black;
+  padding: 5px;
+  border: solid;
+  border-color: black;
+  border-width: 2px;
+}
+
+.tooltip:before {
+	content: " ";
+	position: absolute;
+	bottom: 100%;
+	left: 49%;
+	margin-left: -5px;
+  border: 10px solid transparent;
+  border-bottom-color: black;
+}
+
+.tooltip:after {
+	content: " ";
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	margin-left: -5px;
+  border: 8px solid transparent;
+  border-bottom-color: #ddd;
 }
 
 .wrapper-svg {
@@ -56,7 +86,7 @@ div#plot {
 	flex-direction: column;
 	top: 1em;
 	right: 1em;
-	width: 300px;
+	width: 340px;
 	max-height: 95vh;
 	border: 1px solid black;
 	background-color: white;
@@ -67,6 +97,10 @@ div#plot {
 	padding: 6px;
 	margin-bottom: 6px;
 	overflow-y: auto;
+}
+
+#div-summary ul {
+  padding-left: 1em;
 }
 
 #div-summary p {
