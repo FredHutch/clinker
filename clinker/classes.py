@@ -6,8 +6,9 @@ Module to store classes used across the package.
 Cameron Gilchrist
 """
 
-import itertools
+import json
 import warnings
+import uuid
 
 from pathlib import Path
 
@@ -25,6 +26,25 @@ def find_qualifier(valid_values, qualifiers):
     return None
 
 
+def subdict(d, keys):
+    """Creates a sub-dictionary of a parent dictionary given set of keys."""
+    funcs = ("lower", "upper", "title")
+    sub = {}
+    for key, value in d.items():
+        if key in keys or any(getattr(key, func) in keys for func in funcs):
+            if isinstance(value, list):
+                sub[key] = value[0]
+            else:
+                sub[key] = value
+    return sub
+
+
+def get_value(d, keys):
+    for key in keys:
+        if key in d:
+            return d[key]
+
+
 def parse_genbank(path):
     path = Path(path)
     with path.open() as fp:
@@ -33,13 +53,14 @@ def parse_genbank(path):
     return cluster
 
 
-def find_files(paths):
+def find_files(paths, recurse=True, level=0):
     files = []
     for path in paths:
         if Path(path).is_dir():
-            new = Path(path).glob("*")
-            _files = find_files(new)
-            files.extend(_files)
+            if level == 0 or recurse:
+                new = Path(path).glob("*")
+                _files = find_files(new, recurse=recurse, level=level + 1)
+                files.extend(_files)
         else:
             files.append(path)
     return files
@@ -49,7 +70,60 @@ def parse_files(paths):
     return [parse_genbank(path) for path in paths]
 
 
-class Cluster:
+def get_children(children, uids_only=False):
+    return [
+        child.uid
+        if uids_only
+        else child.to_dict()
+        for child in children
+    ]
+
+
+def load_child(child, thing):
+    if not hasattr(thing, "from_dict"):
+        raise NotImplementedError
+    return child if isinstance(child, str) else thing.from_dict(child)
+
+
+def load_children(children, thing):
+    return [load_child(child, thing) for child in children]
+
+
+class Serializer:
+    """JSON serialisation mixin class.
+
+    Classes that inherit from this class should implement `to_dict` and
+    `from_dict` methods.
+    """
+
+    def to_dict(self):
+        """Serialises class to dict."""
+        raise NotImplementedError
+
+    @classmethod
+    def from_dict(self, d):
+        """Loads class from dict."""
+        raise NotImplementedError
+
+    def to_json(self, fp=None, **kwargs):
+        """Serialises class to JSON."""
+        d = self.to_dict()
+        if fp:
+            json.dump(d, fp, **kwargs)
+        else:
+            return json.dumps(d, **kwargs)
+
+    @classmethod
+    def from_json(cls, js):
+        """Instantiates class from JSON handle."""
+        if isinstance(js, str):
+            d = json.loads(js)
+        else:
+            d = json.load(js)
+        return cls.from_dict(d)
+
+
+class Cluster(Serializer):
     """The Cluster class stores Proteins
 
     Attributes:
@@ -58,19 +132,25 @@ class Cluster:
           to Gene objects in self.genes
     """
 
-    id_iter = itertools.count()
-
     def __init__(self, name, loci, uid=None):
-        self.uid = uid if uid else next(Cluster.id_iter)
+        self.uid = uid if uid else str(uuid.uuid4())
         self.name = name
         self.loci = loci
 
-    def to_dict(self):
+    def to_dict(self, uids_only=False):
         return {
             "uid": self.uid,
             "name": self.name,
-            "loci": [locus.to_dict() for locus in self.loci]
+            "loci": get_children(self.loci, uids_only=uids_only)
         }
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(
+            d["name"],
+            load_children(d["loci"], Locus),
+            uid=d.get("uid")
+        )
 
     @classmethod
     def from_seqrecords(cls, *args, name=None):
@@ -90,13 +170,11 @@ class Cluster:
                 return gene
 
 
-class Locus:
+class Locus(Serializer):
     """A cluster locus."""
 
-    id_iter = itertools.count()
-
     def __init__(self, name, genes, start=None, end=None, uid=None):
-        self.uid = uid if uid else next(Locus.id_iter)
+        self.uid = uid if uid else str(uuid.uuid4())
         self.name = name
         self.genes = genes
         self.start = start
@@ -105,14 +183,24 @@ class Locus:
     def __str__(self):
         return f"{self.name}:{self.start}-{self.end}"
 
-    def to_dict(self):
+    def to_dict(self, uids_only=False):
         return {
             "uid": self.uid,
             "name": self.name,
             "start": self.start,
             "end": self.end,
-            "genes": [gene.to_dict() for gene in self.genes],
+            "genes": get_children(self.genes, uids_only=uids_only),
         }
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(
+            d["name"],
+            load_children(d["genes"], Gene),
+            start=d["start"],
+            end=d["end"],
+            uid=d.get("uid"),
+        )
 
     @classmethod
     def from_seqrecord(cls, record):
@@ -124,6 +212,7 @@ class Locus:
             for feature in record.features
             if feature.type == "CDS"
         ]
+        genes = [gene for gene in genes if gene]
         return cls(name=record.name, start=0, end=len(record), genes=genes)
 
     def get_gene(self, name):
@@ -132,44 +221,44 @@ class Locus:
                 return gene
 
 
-class Gene:
+class Gene(Serializer):
     """Location, annotation and attachment points for drawing links."""
-
-    id_iter = itertools.count()
 
     def __init__(
         self,
-        name=None,
+        uid=None,
+        label=None,
+        names=None,
         start=None,
         end=None,
         strand=None,
-        function=None,
         sequence=None,
         translation=None,
-        uid=None,
     ):
-        self.uid = uid if uid else next(Gene.id_iter)
-        self.name = name
+        self.uid = uid if uid else str(uuid.uuid4())
+        self.label = label if label else self.uid
+        self.names = names if names else {}
         self.start = start
         self.end = end
         self.strand = strand
         self.sequence = sequence
         self.translation = translation
-        self.smcog = {}
-        self.function = function if function else 'Hypothetical'
 
     def to_dict(self):
         return {
             "uid": self.uid,
-            "name": self.name,
+            "label": self.label,
+            "names": self.names,
             "start": self.start,
             "end": self.end,
             "strand": self.strand,
             "sequence": self.sequence,
             "translation": self.translation,
-            "smcog": self.smcog,
-            "function": self.function,
         }
+
+    @classmethod
+    def from_dict(cls, d):
+        return cls(**d)
 
     @property
     def ordered_smcogs(self):
@@ -185,12 +274,10 @@ class Gene:
             feature (SeqFeature): BioPython SeqFeature object
             record (SeqRecord): BioPython SeqRecord object (parent of feature)
         """
-        name = find_qualifier(['protein_id', 'locus_tag', 'ID'], feature.qualifiers)
-        if not name:
-            raise ValueError(
-                "Could not determine a valid identifier"
-                f" from a CDS SeqFeature in {record.id}"
-            )
+        if "pseudo" in feature.qualifiers:
+            return
+        tags = ("protein_id", "locus_tag", "id", "gene", "label", "name")
+        names = subdict(feature.qualifiers, tags)
         sequence = feature.extract(record.seq)
         translation = find_qualifier(
             ["translation"],
@@ -199,7 +286,8 @@ class Gene:
         if not translation:
             translation = sequence.translate()
         return cls(
-            name=name,
+            names=names,
+            label=get_value(names, tags),
             sequence=str(sequence),
             translation=str(translation),
             start=int(feature.location.start),

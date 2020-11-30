@@ -85,32 +85,32 @@ def save_html(data, output):
         html = fp.read()
 
     css_string = '<link rel="stylesheet" href="style.css"></link>'
-    clustermap_string = '<script src="clustermap.min.js"></script>'
+    d3_string = '<script src="d3.min.js"></script>'
     cl_string = '<script src="clinker.js"></script>'
+    cm_string = '<script src="clustermap.min.js"></script>'
 
     assert css_string in html, "Could not find CSS string in index.html"
-    assert clustermap_string in html, "Could not find clustermap.js string in index.html"
+    assert cm_string in html, "Could not find clustermap.js string in index.html"
     assert cl_string in html, "Could not find clinker.js string in index.html"
-
-    with (directory / "style.css").open() as fp:
-        css = fp.read()
-        html = html.replace(css_string, f"<style>{css}</style>")
-
     with (directory / "clustermap.min.js").open() as fp:
         clustermap = fp.read()
-        html = html.replace(clustermap_string, f"<script>{clustermap}</script>")
+        html = html.replace(cm_string, f"<script>{clustermap}</script>")
+
+    with (directory / "clustermap.min.js").open() as fp:
+        cm = fp.read()
+        html = html.replace(cm_string, f"<script>{cm}</script>")
 
     with (directory / "clinker.js").open() as fp:
-        cl = f"\nconst data={json.dumps(data, indent=4)};\n" + fp.read().replace('d3.json("data.json").then(plot)', "plot(data)")
+        cl = f"const data={json.dumps(data)};" + fp.read()
         html = html.replace(cl_string, f"<script>{cl}</script>")
 
     with open(output, "w") as fp:
         fp.write(html)
 
 
-def plot_clusters(clusters, output=None):
+def plot_clusters(clusters, output=None, use_file_order=False):
     """Generates clinker plot from a collection of Synthase objects."""
-    data = clusters.to_data()
+    data = clusters.to_data(use_file_order=use_file_order)
     if output:
         save_html(data, output)
         webbrowser.open(output)
