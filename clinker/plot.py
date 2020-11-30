@@ -105,7 +105,7 @@ def save_html(data, output):
         cl = f"const data={json.dumps(data)};" + fp.read()
         html = html.replace(cl_string, f"<script>{cl}</script>")
 
-    with open(output, "w") as fp:
+    with open(output, "wb") as fp:
         fp.write(html.encode('utf-8'))
 
 
