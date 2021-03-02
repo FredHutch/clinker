@@ -38,6 +38,7 @@ def clinker(
     hide_alignment_headers=False,
     use_file_order=False,
     json_indent=None,
+    jobs=None,
 ):
     """Entry point for running the script."""
     LOG.info("Starting clinker")
@@ -50,16 +51,22 @@ def clinker(
             globaligner = align.Globaligner.from_json(fp)
         if files:
             paths = find_files(files)
+            if not paths:
+                LOG.error("No files found")
+                raise SystemExit
             LOG.info("Parsing GenBank files: %s", paths)
             clusters = parse_files(paths)
 
             LOG.info("Adding clusters to loaded session and aligning")
             globaligner.add_clusters(*clusters)
-            globaligner.align_stored_clusters(cutoff=identity)
+            globaligner.align_stored_clusters(cutoff=identity, jobs=jobs)
             load_session = False
     else:
         # Parse files, generate objects
         paths = find_files(files)
+        if not paths:
+            LOG.error("No files found")
+            raise SystemExit
         LOG.info("Parsing GenBank files: %s", paths)
         clusters = parse_files(paths)
 
@@ -68,29 +75,31 @@ def clinker(
             globaligner = align.Globaligner()
             globaligner.add_clusters(*clusters)
         elif len(clusters) == 1:
-            globaligner = align.align_clusters(clusters[0])
+            globaligner = align.align_clusters(clusters[0], jobs=1)
         else:
             LOG.info("Starting cluster alignments")
-            globaligner = align.align_clusters(*clusters, cutoff=identity)
+            globaligner = align.align_clusters(*clusters, cutoff=identity, jobs=jobs)
 
-    LOG.info("Generating results summary...")
-    summary = globaligner.format(
-        delimiter=delimiter,
-        decimals=decimals,
-        link_headers=not hide_link_headers,
-        alignment_headers=not hide_alignment_headers,
-    )
-
-    if output:
-        if (output and Path(output).exists() and not force):
-            print(summary)
-            LOG.warn("File %s already exists but --force was not specified", output)
+    if globaligner.alignments:
+        LOG.info("Generating results summary...")
+        summary = globaligner.format(
+            delimiter=delimiter,
+            decimals=decimals,
+            link_headers=not hide_link_headers,
+            alignment_headers=not hide_alignment_headers,
+        )
+        if output:
+            if (output and Path(output).exists() and not force):
+                print(summary)
+                LOG.warn("File %s already exists but --force was not specified", output)
+            else:
+                LOG.info("Writing alignments to: %s", output)
+                with open(output, "w") as fp:
+                    fp.write(summary)
         else:
-            LOG.info("Writing alignments to: %s", output)
-            with open(output, "w") as fp:
-                fp.write(summary)
+            print(summary)
     else:
-        print(summary)
+        LOG.info("No alignments were generated")
 
     if session and not load_session:
         LOG.info("Saving session to: %s", session)
@@ -125,6 +134,16 @@ def get_parser():
         epilog="Example usage\n-------------\n"
         "Align clusters, plot results and print scores to screen:\n"
         "  $ clinker files/*.gbk\n\n"
+        "Only save gene-gene links when identity is over 50%:\n"
+        "  $ clinker files/*.gbk -i 0.5\n\n"
+        "Save an alignment session for later:\n"
+        "  $ clinker files/*.gbk -s session.json\n\n"
+        "Save alignments to file, in comma-delimited format, with 4 decimal places:\n"
+        "  $ clinker files/*.gbk -o alignments.csv -dl \",\" -dc 4\n\n"
+        "Generate visualisation:\n"
+        "  $ clinker files/*.gbk -p\n\n"
+        "Save visualisation as a static HTML document:\n"
+        "  $ clinker files/*.gbk -p plot.html\n\n"
         "Cameron Gilchrist, 2020",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -140,14 +159,21 @@ def get_parser():
     alignment.add_argument(
         "-i",
         "--identity",
-        help="Minimum alignment sequence identity",
+        help="Minimum alignment sequence identity [default: 0.3]",
         type=float,
         default=0.3
+    )
+    alignment.add_argument(
+        "-j",
+        "--jobs",
+        help="Number of alignments to run in parallel (0 to use the number of CPUs) [default: 0]",
+        type=int,
+        default=0,
     )
 
     output = parser.add_argument_group("Output options")
     output.add_argument("-s", "--session", help="Path to clinker session")
-    output.add_argument("-ji", "--json_indent", type=int, help="Number of spaces to indent JSON")
+    output.add_argument("-ji", "--json_indent", type=int, help="Number of spaces to indent JSON [default: none]")
     output.add_argument("-f", "--force", help="Overwrite previous output file", action="store_true")
     output.add_argument("-o", "--output", help="Save alignments to file")
     output.add_argument(
@@ -160,8 +186,8 @@ def get_parser():
         " clinker will generate a portable HTML file at that path. Otherwise,"
         " the plot will be served dynamically using Python's HTTP server."
     )
-    output.add_argument("-dl", "--delimiter", help="Character to delimit output by")
-    output.add_argument("-dc", "--decimals", help="Number of decimal places in output", default=2)
+    output.add_argument("-dl", "--delimiter", help="Character to delimit output by [default: human readable]")
+    output.add_argument("-dc", "--decimals", help="Number of decimal places in output [default: 2]", default=2)
     output.add_argument(
         "-hl",
         "--hide_link_headers",
@@ -203,6 +229,7 @@ def main():
         hide_link_headers=args.hide_link_headers,
         hide_alignment_headers=args.hide_aln_headers,
         use_file_order=args.use_file_order,
+        jobs=args.jobs if args.jobs > 0 else None
     )
 
 

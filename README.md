@@ -22,7 +22,7 @@ clinker can be installed directly through pip:
 
 `pip install clinker`
 
-Or by cloning the source code from GitHub:
+By cloning the source code from GitHub:
 
 ```
 git clone https://github.com/gamcil/clinker.git
@@ -30,10 +30,19 @@ cd clinker
 pip install .
 ```
 
+Or, through conda:
+
+```
+conda create -n clinker -c conda-forge -c bioconda clinker-py
+conda activate clinker
+```
+
 ## Citation
 If you found clinker useful, please cite:
 ```
-Gilchrist, C.L.M., Chooi, Y.-H., 2020. clinker & clustermap.js: Automatic generation of gene cluster comparison figures. bioRxiv 2020.11.08.370650. https://doi.org/10.1101/2020.11.08.370650
+clinker & clustermap.js: Automatic generation of gene cluster comparison figures.
+Gilchrist, C.L.M., Chooi, Y.-H., 2020.
+Bioinformatics. doi: https://doi.org/10.1093/bioinformatics/btab007
 ```
 
 ## Usage
@@ -68,10 +77,17 @@ optional arguments:
   -h, --help            show this help message and exit
 
 Alignment options:
+  -na, --no_align       Do not align clusters
   -i IDENTITY, --identity IDENTITY
                         Minimum alignment sequence identity
+  -j JOBS, --jobs JOBS  Number of alignments to run in parallel (0 to use the
+                        number of CPUs)
 
 Output options:
+  -s SESSION, --session SESSION
+                        Path to clinker session
+  -ji JSON_INDENT, --json_indent JSON_INDENT
+                        Number of spaces to indent JSON
   -f, --force           Overwrite previous output file
   -o OUTPUT, --output OUTPUT
                         Save alignments to file
@@ -88,6 +104,10 @@ Output options:
                         Hide alignment column headers
   -ha, --hide_aln_headers
                         Hide alignment cluster name headers
+
+Visualisation options:
+  -ufo, --use_file_order
+                        Display clusters in order of input files
 
 Example usage
 -------------

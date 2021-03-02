@@ -9,7 +9,7 @@ function serialise(svg) {
 	const xmlns = "http://www.w3.org/2000/xmlns/";
 	const xlinkns = "http://www.w3.org/1999/xlink";
 	const xhtml = "http://www.w3.org/1999/xhtml";
-	const svgns = "http://www.w3.org/2000/node";
+	const svgns = "http://www.w3.org/2000/svg";
 	const bbox = svg.select("g").node().getBBox()
 
 	node = node.cloneNode(true);
@@ -27,7 +27,7 @@ function serialise(svg) {
 
 	const serializer = new window.XMLSerializer;
 	const string = serializer.serializeToString(node);
-	return new Blob([string], {type: "image/node+xml"});
+	return new Blob([string], {type: "image/svg+xml"});
 }
 
 function download(blob, filename) {
@@ -76,11 +76,34 @@ function plot(data) {
     plot.call(chart)
   }
 
+  // Populate label type multi select and bind change handler
+  let labelTypes = new Set()
+  data.clusters.forEach(cluster => {
+    cluster.loci.forEach(locus => {
+      locus.genes.forEach(gene => Object.keys(gene.names).forEach(type => labelTypes.add(type)))
+    })
+  })
+  const changeLabel = event => {
+    const type = event.target.value
+    d3.selectAll("text.geneLabel")
+      .each(d => d.label = d.names[type] ? d.names[type] : d.label)
+    update({})
+  }
+  let select = d3.select("#select-label-type")
+    .on("change", changeLabel)
+  select.selectAll("option")
+    .data(labelTypes)
+    .join("option")
+    .attr("value", d => d)
+    .text(d => d)
+
   // Figure layout
   d3.select("#input-scale-factor")
     .on("change", function() {update({plot: {scaleFactor: +this.value}})})
   d3.select("#input-cluster-spacing")
     .on("change", function() {update({cluster: {spacing: +this.value}})})
+  d3.select("#input-scale-genes")
+    .on("change", function() {update({plot: {scaleGenes: d3.select(this).property("checked")}})})
 
   // Cluster
   d3.select("#input-cluster-align-labels")
@@ -145,8 +168,24 @@ function plot(data) {
     .on("change", function() {update({link: {show: d3.select(this).property("checked")}})})
   d3.select("#input-link-best-only")
     .on("change", function() {update({link: {bestOnly: d3.select(this).property("checked")}})})
+  d3.select("#input-link-as-line")
+    .on("change", function() {update({link: {asLine: d3.select(this).property("checked")}})})
+  d3.select("#input-link-straight")
+    .on("change", function() {update({link: {straight: d3.select(this).property("checked")}})})
+  d3.select("#input-link-group-colour")
+    .on("change", function() {update({link: {groupColour: d3.select(this).property("checked")}})})
+  d3.select("#input-link-stroke-width")
+    .on("change", function() {update({link: {strokeWidth: +this.value}})})
   d3.select("#input-link-threshold")
     .on("change", function() {update({link: {threshold: +this.value}})})
+  d3.select("#input-link-fontsize")
+    .on("change", function() {update({link: {label: {fontSize: +this.value}}})})
+  d3.select("#input-link-label-pos")
+    .on("change", function() {update({link: {label: {position: +this.value}}})})
+  d3.select("#input-link-label-show")
+    .on("change", function() {update({link: {label: {show: d3.select(this).property("checked")}}})})
+  d3.select("#input-link-labelbg-show")
+    .on("change", function() {update({link: {label: {background: d3.select(this).property("checked")}}})})
 }
 
 if (typeof data === 'undefined') {
